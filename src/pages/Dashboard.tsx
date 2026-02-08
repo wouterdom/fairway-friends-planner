@@ -15,7 +15,10 @@ import {
   CheckCircle2,
   Clock,
   Swords,
-  Info
+  Info,
+  Crown,
+  Lock,
+  Zap
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMemo } from 'react';
@@ -55,60 +58,26 @@ export default function Dashboard() {
     });
   }, [teams, players, games]);
 
-  // Determine next steps
-  const getNextSteps = () => {
-    const steps = [];
-    
-    if (players.length < 4) {
-      steps.push({
-        id: 'add-players',
-        title: 'Add Players',
-        description: `You have ${players.length} players. Add at least 4 to get started.`,
-        action: { label: 'Add Players', to: '/players' },
-        priority: 'high',
-        icon: Users,
-      });
-    }
-    
-    const teamsWithCaptains = teams.filter(t => t.captainId).length;
-    if (teamsWithCaptains < 2 && players.length >= 4) {
-      steps.push({
-        id: 'assign-captains',
-        title: 'Assign Captains',
-        description: 'Each team needs a captain to manage pairings.',
-        action: { label: 'Assign Captains', to: '/players' },
-        priority: 'medium',
-        icon: Trophy,
-      });
-    }
-    
-    if (fixtureDays.length === 0 && players.length >= 4) {
-      steps.push({
-        id: 'create-session',
-        title: 'Create First Session',
-        description: 'Set up your first golf day with matches.',
-        action: { label: 'Create Session', to: '/fixtures' },
-        priority: 'high',
-        icon: Calendar,
-      });
-    }
-    
-    if (finalizedDays > 0 && completedGames === 0) {
-      steps.push({
-        id: 'start-playing',
-        title: 'Start Playing',
-        description: `${finalizedDays} session${finalizedDays > 1 ? 's' : ''} ready. Start scoring matches!`,
-        action: { label: 'Play Now', to: '/play' },
-        priority: 'high',
-        icon: Play,
-      });
-    }
-    
-    return steps;
-  };
+  // Check each requirement step by step
+  const hasPlayers = players.length >= 4;
+  const playersOnTeams = players.filter(p => teams.some(t => t.players.includes(p.id))).length;
+  const hasTeamsSetUp = playersOnTeams >= 4;
+  const hasCaptains = teams.filter(t => t.captainId).length >= 2;
+  const hasGolfDays = fixtureDays.length > 0;
+  const hasReadyDays = finalizedDays > 0;
+  const isPlaying = completedGames > 0 || inProgressGames > 0;
 
-  const nextSteps = getNextSteps();
-  const hasIncompleteSetup = nextSteps.some(s => s.priority === 'high');
+  // Calculate overall progress
+  const totalSteps = 6;
+  const completedSteps = [
+    hasPlayers,
+    hasTeamsSetUp,
+    hasCaptains,
+    hasGolfDays,
+    hasReadyDays,
+    isPlaying
+  ].filter(Boolean).length;
+  const progressPercent = (completedSteps / totalSteps) * 100;
 
   // Get recent activity
   const recentGames = games.slice(-3).reverse();
@@ -122,47 +91,238 @@ export default function Dashboard() {
             Dashboard
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            Manage your golf competition and track progress
+            Track your progress and manage your golf competition
           </p>
         </div>
 
-        {/* Next Steps - Show if setup incomplete */}
-        {hasIncompleteSetup && (
-          <Card className="mb-6 md:mb-8 border-warning/50 bg-warning/5 animate-fade-up">
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="flex items-center gap-2 text-warning text-lg sm:text-xl">
-                <Clock className="w-5 h-5" />
-                Next Steps
+        {/* COMPLETE SETUP CHECKLIST - Always visible */}
+        <Card className="mb-6 md:mb-8 animate-fade-up">
+          <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
+                <Info className="w-5 h-5 text-primary" />
+                {completedSteps === totalSteps ? 'All Set! 🎉' : 'Complete Your Setup'}
               </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
-              <div className="space-y-3">
-                {nextSteps.map((step) => (
-                  <div 
-                    key={step.id}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 rounded-lg bg-background border gap-3"
-                  >
-                    <div className="flex items-start gap-3 sm:gap-4">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <step.icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="font-semibold text-foreground text-sm sm:text-base">{step.title}</h3>
-                        <p className="text-xs sm:text-sm text-muted-foreground">{step.description}</p>
-                      </div>
-                    </div>
-                    <Button asChild variant={step.priority === 'high' ? 'hero' : 'outline'} className="w-full sm:w-auto">
-                      <Link to={step.action.to}>
-                        {step.action.label}
-                        <ArrowRight className="w-4 h-4 ml-2" />
-                      </Link>
-                    </Button>
+              <Badge variant={completedSteps === totalSteps ? "default" : "outline"}>
+                {completedSteps}/{totalSteps} done
+              </Badge>
+            </div>
+            <Progress value={progressPercent} className="h-2 mt-3" />
+          </CardHeader>
+          <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+            <div className="space-y-2">
+              {/* Step 1: Add Players */}
+              <div className={`flex items-center justify-between p-3 sm:p-4 rounded-lg border ${hasPlayers ? 'bg-success/5 border-success/20' : 'bg-muted/50 border-border'}`}>
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${hasPlayers ? 'bg-success/20' : 'bg-muted'}`}>
+                    {hasPlayers ? (
+                      <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
+                    ) : (
+                      <span className="text-sm font-bold text-muted-foreground">1</span>
+                    )}
                   </div>
-                ))}
+                  <div>
+                    <h3 className={`font-semibold text-sm sm:text-base ${hasPlayers ? 'text-foreground' : 'text-foreground'}`}>
+                      Add Players
+                    </h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {hasPlayers 
+                        ? `${players.length} players added ✓` 
+                        : `You have ${players.length} players. Need at least 4.`
+                      }
+                    </p>
+                  </div>
+                </div>
+                {!hasPlayers && (
+                  <Button size="sm" asChild>
+                    <Link to="/players">
+                      Add
+                      <ArrowRight className="w-4 h-4 ml-1" />
+                    </Link>
+                  </Button>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        )}
+
+              {/* Step 2: Assign to Teams */}
+              <div className={`flex items-center justify-between p-3 sm:p-4 rounded-lg border ${hasTeamsSetUp ? 'bg-success/5 border-success/20' : hasPlayers ? 'bg-warning/5 border-warning/20' : 'bg-muted/30 border-border opacity-60'}`}>
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${hasTeamsSetUp ? 'bg-success/20' : hasPlayers ? 'bg-warning/20' : 'bg-muted'}`}>
+                    {hasTeamsSetUp ? (
+                      <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
+                    ) : (
+                      <span className="text-sm font-bold text-muted-foreground">2</span>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm sm:text-base">
+                      Assign to Teams
+                    </h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {hasTeamsSetUp 
+                        ? `${playersOnTeams} players assigned ✓` 
+                        : hasPlayers 
+                          ? `${playersOnTeams} assigned. Need at least 4 total.`
+                          : 'Complete step 1 first'
+                      }
+                    </p>
+                  </div>
+                </div>
+                {hasPlayers && !hasTeamsSetUp && (
+                  <Button size="sm" variant="outline" asChild>
+                    <Link to="/players">
+                      Assign
+                      <ArrowRight className="w-4 h-4 ml-1" />
+                    </Link>
+                  </Button>
+                )}
+              </div>
+
+              {/* Step 3: Set Captains */}
+              <div className={`flex items-center justify-between p-3 sm:p-4 rounded-lg border ${hasCaptains ? 'bg-success/5 border-success/20' : hasTeamsSetUp ? 'bg-warning/5 border-warning/20' : 'bg-muted/30 border-border opacity-60'}`}>
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${hasCaptains ? 'bg-success/20' : hasTeamsSetUp ? 'bg-warning/20' : 'bg-muted'}`}>
+                    {hasCaptains ? (
+                      <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
+                    ) : (
+                      <span className="text-sm font-bold text-muted-foreground">3</span>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm sm:text-base">
+                      Set Team Captains
+                    </h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {hasCaptains 
+                        ? 'Both captains assigned ✓' 
+                        : hasTeamsSetUp 
+                          ? `${teams.filter(t => t.captainId).length}/2 captains set`
+                          : 'Complete step 2 first'
+                      }
+                    </p>
+                  </div>
+                </div>
+                {hasTeamsSetUp && !hasCaptains && (
+                  <Button size="sm" variant="outline" asChild>
+                    <Link to="/players">
+                      <Crown className="w-3.5 h-3.5 mr-1" />
+                      Set
+                    </Link>
+                  </Button>
+                )}
+              </div>
+
+              {/* Step 4: Create Golf Day */}
+              <div className={`flex items-center justify-between p-3 sm:p-4 rounded-lg border ${hasGolfDays ? 'bg-success/5 border-success/20' : hasCaptains ? 'bg-warning/5 border-warning/20' : 'bg-muted/30 border-border opacity-60'}`}>
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${hasGolfDays ? 'bg-success/20' : hasCaptains ? 'bg-warning/20' : 'bg-muted'}`}>
+                    {hasGolfDays ? (
+                      <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
+                    ) : (
+                      <span className="text-sm font-bold text-muted-foreground">4</span>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm sm:text-base">
+                      Create Golf Day
+                    </h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {hasGolfDays 
+                        ? `${fixtureDays.length} day${fixtureDays.length > 1 ? 's' : ''} created ✓` 
+                        : hasCaptains 
+                          ? 'Create your first competition day'
+                          : 'Complete step 3 first'
+                      }
+                    </p>
+                  </div>
+                </div>
+                {hasCaptains && !hasGolfDays && (
+                  <Button size="sm" variant="outline" asChild>
+                    <Link to="/fixtures">
+                      <Calendar className="w-3.5 h-3.5 mr-1" />
+                      Create
+                    </Link>
+                  </Button>
+                )}
+              </div>
+
+              {/* Step 5: Setup Matches */}
+              <div className={`flex items-center justify-between p-3 sm:p-4 rounded-lg border ${hasReadyDays ? 'bg-success/5 border-success/20' : hasGolfDays ? 'bg-warning/5 border-warning/20' : 'bg-muted/30 border-border opacity-60'}`}>
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${hasReadyDays ? 'bg-success/20' : hasGolfDays ? 'bg-warning/20' : 'bg-muted'}`}>
+                    {hasReadyDays ? (
+                      <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
+                    ) : (
+                      <span className="text-sm font-bold text-muted-foreground">5</span>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm sm:text-base">
+                      Setup Matches
+                    </h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {hasReadyDays 
+                        ? `${finalizedDays} day${finalizedDays > 1 ? 's' : ''} ready ✓` 
+                        : hasGolfDays 
+                          ? 'Captains need to set pairings'
+                          : 'Complete step 4 first'
+                      }
+                    </p>
+                  </div>
+                </div>
+                {hasGolfDays && !hasReadyDays && (
+                  <Button size="sm" variant="outline" asChild>
+                    <Link to="/fixtures">
+                      <Lock className="w-3.5 h-3.5 mr-1" />
+                      Setup
+                    </Link>
+                  </Button>
+                )}
+              </div>
+
+              {/* Step 6: Play! */}
+              <div className={`flex items-center justify-between p-3 sm:p-4 rounded-lg border ${isPlaying ? 'bg-success/5 border-success/20' : hasReadyDays ? 'bg-primary/5 border-primary/20' : 'bg-muted/30 border-border opacity-60'}`}>
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shrink-0 ${isPlaying ? 'bg-success/20' : hasReadyDays ? 'bg-primary/20' : 'bg-muted'}`}>
+                    {isPlaying ? (
+                      <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5 text-success" />
+                    ) : (
+                      <Play className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm sm:text-base">
+                      {isPlaying ? 'Competition Underway!' : 'Start Playing'}
+                    </h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground">
+                      {isPlaying 
+                        ? `${completedGames} match${completedGames !== 1 ? 'es' : ''} completed` 
+                        : hasReadyDays 
+                          ? 'Everything ready! Start your first match.'
+                          : 'Complete step 5 first'
+                      }
+                    </p>
+                  </div>
+                </div>
+                {hasReadyDays && (
+                  <Button size="sm" variant={isPlaying ? "outline" : "hero"} asChild>
+                    <Link to="/play">
+                      <Play className="w-3.5 h-3.5 mr-1" />
+                      {isPlaying ? 'Continue' : 'Play'}
+                    </Link>
+                  </Button>
+                )}
+                {!hasReadyDays && hasPlayers && (
+                  <Button size="sm" variant="outline" asChild>
+                    <Link to="/play" state={{ mode: 'quick' }}>
+                      <Zap className="w-3.5 h-3.5 mr-1" />
+                      Quick
+                    </Link>
+                  </Button>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 md:mb-8">
