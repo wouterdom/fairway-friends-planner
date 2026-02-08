@@ -315,31 +315,36 @@ export default function Players() {
         </div>
 
         {/* Setup Guide */}
-        {players.length < 4 && (
-          <Card className="mb-6 border-primary/50 bg-primary/5 animate-fade-up">
-            <CardContent className="p-6">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <Info className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-foreground mb-1">Getting Started</h3>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    You need at least 4 players (2 per team) to create matches. 
-                    Add players above and assign them to teams.
-                  </p>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Badge variant="outline">Step 1: Add Players</Badge>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                    <Badge variant="outline">Step 2: Assign to Teams</Badge>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
-                    <Badge variant="outline">Step 3: Set Captains</Badge>
-                  </div>
-                </div>
+        <Card className="mb-6 border-primary/50 bg-primary/5 animate-fade-up">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Info className="w-5 h-5 text-primary" />
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground mb-1">How Teams Work</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  This is a <strong>team-based competition</strong> (like the Ryder Cup). 
+                  Two teams compete against each other across multiple golf days. 
+                  Team names and colors can be customized by clicking the edit icon.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <Badge variant={players.length > 0 ? "default" : "outline"}>1. Add Players</Badge>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                  <Badge variant={players.filter(p => teams.some(t => t.players.includes(p.id))).length >= 4 ? "default" : "outline"}>2. Assign to Teams</Badge>
+                  <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                  <Badge variant={teams.filter(t => t.captainId).length >= 2 ? "default" : "outline"}>3. Set Captains</Badge>
+                </div>
+                {players.length > 0 && players.length < 4 && (
+                  <p className="text-sm text-warning mt-3 flex items-center gap-1">
+                    <Info className="w-4 h-4" />
+                    Add at least {4 - players.length} more player{4 - players.length > 1 ? 's' : ''} to start playing
+                  </p>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {players.length > 0 ? (
           <div className="space-y-4">

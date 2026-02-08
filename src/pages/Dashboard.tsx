@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Users, 
   Trophy, 
@@ -13,7 +14,8 @@ import {
   Target,
   CheckCircle2,
   Clock,
-  Swords
+  Swords,
+  Info
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useMemo } from 'react';
@@ -177,7 +179,8 @@ export default function Dashboard() {
                   <Users className="w-6 h-6 text-primary" />
                 </div>
               </div>
-              <div className="mt-4">
+              <p className="text-xs text-muted-foreground mt-2">Across {teams.length} teams</p>
+              <div className="mt-2">
                 <Button variant="ghost" size="sm" className="w-full" asChild>
                   <Link to="/players">Manage Players</Link>
                 </Button>
@@ -185,24 +188,36 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          <Card className="animate-fade-up" style={{ animationDelay: '0.15s' }}>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Sessions</p>
-                  <p className="text-3xl font-bold text-foreground">{fixtureDays.length}</p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-accent" />
-                </div>
-              </div>
-              <div className="mt-4">
-                <Button variant="ghost" size="sm" className="w-full" asChild>
-                  <Link to="/fixtures">View Sessions</Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card className="animate-fade-up" style={{ animationDelay: '0.15s' }}>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-1 mb-1">
+                          <p className="text-sm text-muted-foreground">Golf Days</p>
+                          <Info className="w-3 h-3 text-muted-foreground" />
+                        </div>
+                        <p className="text-3xl font-bold text-foreground">{fixtureDays.length}</p>
+                      </div>
+                      <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
+                        <Calendar className="w-6 h-6 text-accent" />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <Button variant="ghost" size="sm" className="w-full" asChild>
+                        <Link to="/fixtures">Manage Days</Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs">A "Golf Day" (or Session) is one day of competition.<br/>Example: Day 1 at St Andrews playing Four-Ball</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           <Card className="animate-fade-up" style={{ animationDelay: '0.2s' }}>
             <CardContent className="p-6">

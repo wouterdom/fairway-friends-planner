@@ -101,18 +101,42 @@ export default function Fixtures() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8 animate-fade-up">
           <div>
             <h1 className="font-display text-3xl font-bold text-foreground mb-2">
-              Fixtures & Scoreboard
+              Golf Days (Sessions)
             </h1>
             <p className="text-muted-foreground">
-              Manage games and track scores across {teams.length} teams
+              Create and manage competition days. Each day is a separate session with matches.
             </p>
           </div>
 
           <Button variant="hero" size="lg" onClick={() => setCreateDialogOpen(true)}>
             <Plus className="w-5 h-5 mr-2" />
-            Create Fixture Day
+            Add Golf Day
           </Button>
         </div>
+
+        {/* What are Golf Days? */}
+        <Card className="mb-6 border-accent/50 bg-accent/5 animate-fade-up">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center shrink-0">
+                <Calendar className="w-5 h-5 text-accent" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground mb-1">What are Golf Days?</h3>
+                <p className="text-sm text-muted-foreground">
+                  Each "Golf Day" represents one day of your competition trip. For example:
+                </p>
+                <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
+                  <li><strong>Day 1:</strong> Friday at St Andrews - Playing Four-Ball</li>
+                  <li><strong>Day 2:</strong> Saturday at Carnoustie - Playing Singles</li>
+                </ul>
+                <p className="text-sm text-muted-foreground mt-2">
+                  You can create multiple days, each with different formats and pairings.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Tabs defaultValue="captain" className="space-y-6">
           <TabsList className="grid w-full max-w-lg grid-cols-3">
