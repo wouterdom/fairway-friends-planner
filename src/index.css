@@ -1,0 +1,239 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Golf Gamebook-inspired fresh palette */
+    --background: 150 20% 98%;
+    --foreground: 160 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 160 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 160 25% 15%;
+
+    /* Fresh mint green - Golf Gamebook signature */
+    --primary: 158 64% 35%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Light mint tint */
+    --secondary: 155 40% 94%;
+    --secondary-foreground: 160 25% 15%;
+
+    --muted: 150 15% 95%;
+    --muted-foreground: 160 10% 45%;
+
+    /* Bright emerald accent */
+    --accent: 158 64% 35%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Success green for birdies */
+    --success: 158 64% 35%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning amber */
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 150 15% 90%;
+    --input: 150 15% 90%;
+    --ring: 158 64% 35%;
+
+    --radius: 1rem;
+
+    /* Fresh gradients */
+    --gradient-mint: linear-gradient(135deg, hsl(158 64% 35%) 0%, hsl(155 55% 45%) 100%);
+    --gradient-fresh: linear-gradient(180deg, hsl(155 40% 96%) 0%, hsl(150 20% 98%) 100%);
+    --gradient-glow: radial-gradient(circle at 50% 0%, hsl(155 40% 94%) 0%, transparent 70%);
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 hsl(160 25% 15% / 0.04);
+    --shadow-md: 0 4px 12px -2px hsl(160 25% 15% / 0.08);
+    --shadow-lg: 0 12px 24px -4px hsl(160 25% 15% / 0.1);
+    --shadow-mint: 0 8px 24px -8px hsl(158 64% 35% / 0.35);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 160 25% 15%;
+    --sidebar-primary: 158 64% 35%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 155 40% 94%;
+    --sidebar-accent-foreground: 160 25% 15%;
+    --sidebar-border: 150 15% 92%;
+    --sidebar-ring: 158 64% 35%;
+  }
+
+  .dark {
+    --background: 160 20% 8%;
+    --foreground: 150 20% 96%;
+
+    --card: 160 18% 12%;
+    --card-foreground: 150 20% 96%;
+
+    --popover: 160 18% 12%;
+    --popover-foreground: 150 20% 96%;
+
+    --primary: 158 55% 50%;
+    --primary-foreground: 160 20% 8%;
+
+    --secondary: 160 15% 18%;
+    --secondary-foreground: 150 20% 96%;
+
+    --muted: 160 15% 18%;
+    --muted-foreground: 150 10% 60%;
+
+    --accent: 158 55% 50%;
+    --accent-foreground: 160 20% 8%;
+
+    --destructive: 0 62.8% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 158 55% 50%;
+    --success-foreground: 160 20% 8%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --border: 160 15% 20%;
+    --input: 160 15% 20%;
+    --ring: 158 55% 50%;
+
+    --sidebar-background: 160 20% 8%;
+    --sidebar-foreground: 150 20% 96%;
+    --sidebar-primary: 158 55% 50%;
+    --sidebar-primary-foreground: 160 20% 8%;
+    --sidebar-accent: 160 15% 18%;
+    --sidebar-accent-foreground: 150 20% 96%;
+    --sidebar-border: 160 15% 20%;
+    --sidebar-ring: 158 55% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3 {
+    @apply font-display font-semibold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .text-gradient-mint {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-mint);
+  }
+
+  .bg-gradient-mint {
+    background-image: var(--gradient-mint);
+  }
+
+  .bg-gradient-fresh {
+    background-image: var(--gradient-fresh);
+  }
+
+  .bg-gradient-glow {
+    background-image: var(--gradient-glow);
+  }
+
+  .shadow-mint {
+    box-shadow: var(--shadow-mint);
+  }
+
+  /* Topographic pattern overlay - inspired by Golf Gamebook */
+  .pattern-topo {
+    position: relative;
+  }
+  
+  .pattern-topo::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M-50 200C50 150 150 250 250 200C350 150 450 250 550 200' stroke='%2300875a' stroke-opacity='0.08' stroke-width='2' fill='none'/%3E%3Cpath d='M-50 250C50 200 150 300 250 250C350 200 450 300 550 250' stroke='%2300875a' stroke-opacity='0.06' stroke-width='2' fill='none'/%3E%3Cpath d='M-50 150C50 100 150 200 250 150C350 100 450 200 550 150' stroke='%2300875a' stroke-opacity='0.06' stroke-width='2' fill='none'/%3E%3Cpath d='M-50 300C50 250 150 350 250 300C350 250 450 350 550 300' stroke='%2300875a' stroke-opacity='0.04' stroke-width='2' fill='none'/%3E%3Cpath d='M-50 100C50 50 150 150 250 100C350 50 450 150 550 100' stroke='%2300875a' stroke-opacity='0.04' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+    background-size: 400px 400px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .animate-fade-up {
+    animation: fadeUp 0.5s ease-out forwards;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.3s ease-out forwards;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.4s ease-out forwards;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}

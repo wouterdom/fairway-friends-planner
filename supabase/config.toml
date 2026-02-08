@@ -1,0 +1,13 @@
+project_id = "jbdadncvelglxicyfrrg"
+
+[functions.suggest-trips]
+verify_jwt = false
+
+[functions.discover-courses]
+verify_jwt = false
+
+[functions.get-mapbox-token]
+verify_jwt = false
+
+[functions.places-autocomplete]
+verify_jwt = false
