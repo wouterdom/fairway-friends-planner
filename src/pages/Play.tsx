@@ -149,8 +149,10 @@ export default function Play() {
     setShowQuickSetup(false);
   };
 
-  // Get all finalized fixture days with their matches
-  const finalizedFixtureDays = fixtureDays.filter(fd => fd.teamALockedIn && fd.teamBLockedIn);
+  // Get all fixture days (not just finalized) to show status
+  const allFixtureDays = fixtureDays.sort((a, b) => 
+    new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
 
   return (
     <AppLayout>
@@ -321,10 +323,13 @@ export default function Play() {
         {/* ORGANIZED MODE */}
         {mode === 'organized' && (
           <div className="animate-fade-up">
-            {finalizedFixtureDays.length > 0 ? (
+            {allFixtureDays.length > 0 ? (
               <div className="space-y-3 sm:space-y-4">
-                {finalizedFixtureDays.map((fixtureDay) => {
+                {allFixtureDays.map((fixtureDay) => {
                   const isSingles = fixtureDay.gameFormat === 'singles';
+                  const isReady = fixtureDay.teamALockedIn && fixtureDay.teamBLockedIn;
+                  const isPairing = (fixtureDay.teamALockedIn || fixtureDay.teamBLockedIn) && !isReady;
+                  const isDraft = !fixtureDay.teamALockedIn && !fixtureDay.teamBLockedIn;
                   
                   // Generate matches for display
                   const displayMatches: DisplayMatch[] = isSingles 
@@ -346,6 +351,29 @@ export default function Play() {
                         gameFormat: fixtureDay.gameFormat,
                         scoringType: fixtureDay.scoringType,
                       }));
+                  
+                  // Status config
+                  let statusConfig = {
+                    label: 'Draft',
+                    color: 'bg-muted text-muted-foreground',
+                    description: 'Needs setup',
+                    canPlay: false
+                  };
+                  if (isReady) {
+                    statusConfig = {
+                      label: 'Ready',
+                      color: 'bg-success/20 text-success border-success',
+                      description: 'Ready to play',
+                      canPlay: true
+                    };
+                  } else if (isPairing) {
+                    statusConfig = {
+                      label: 'Pairing',
+                      color: 'bg-warning/20 text-warning border-warning',
+                      description: 'Captains setting up',
+                      canPlay: false
+                    };
+                  }
                   
                   return (
                     <Card key={fixtureDay.id} className="overflow-hidden">
@@ -369,96 +397,153 @@ export default function Play() {
                               <span className="capitalize">{fixtureDay.gameFormat.replace('-', ' ')}</span>
                             </p>
                           </div>
-                          <Badge variant="default" className="w-fit">
-                            <Lock className="w-3 h-3 mr-1" />
-                            Ready
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={`${statusConfig.color} text-xs`}>
+                              {statusConfig.label}
+                            </Badge>
+                            {isDraft && (
+                              <Button 
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => window.location.href = `/fixtures`}
+                              >
+                                Setup
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Captain Status */}
+                        <div className="mt-3 pt-3 border-t flex items-center gap-4 text-xs sm:text-sm">
+                          <div className="flex items-center gap-1.5">
+                            {fixtureDay.teamALockedIn ? (
+                              <Badge variant="default" className="text-[10px] sm:text-xs">
+                                <Lock className="w-3 h-3 mr-1" />
+                                {teamA?.name || 'Team A'} ✓
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] sm:text-xs text-muted-foreground">
+                                {teamA?.name || 'Team A'} pending
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {fixtureDay.teamBLockedIn ? (
+                              <Badge variant="default" className="text-[10px] sm:text-xs">
+                                <Lock className="w-3 h-3 mr-1" />
+                                {teamB?.name || 'Team B'} ✓
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] sm:text-xs text-muted-foreground">
+                                {teamB?.name || 'Team B'} pending
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="p-4 sm:p-6 pt-3 sm:pt-4">
-                        <div className="space-y-2 sm:space-y-3">
-                          {displayMatches.map((match, matchIdx) => {
-                            const inProgress = isMatchInProgress(match.id);
-                            const completed = isMatchCompleted(match.id);
-                            
-                            return (
-                              <div 
-                                key={match.id} 
-                                className={`p-3 sm:p-4 rounded-lg border ${inProgress ? 'bg-primary/5 border-primary/30' : 'bg-muted/30'}`}
-                              >
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 mb-3">
-                                  <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
-                                    <Swords className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                    {isSingles ? `Match ${matchIdx + 1}` : `Flight ${matchIdx + 1}`}
-                                  </div>
-                                  <div className="flex items-center gap-2">
-                                    {completed && (
-                                      <Badge variant="default" className="bg-green-600 text-xs">Completed</Badge>
-                                    )}
-                                    {inProgress && !completed && (
-                                      <Badge variant="outline" className="border-primary text-primary text-xs">In Progress</Badge>
-                                    )}
-                                    <Button 
-                                      variant={inProgress ? "outline" : "hero"}
-                                      size="sm"
-                                      className="text-xs"
-                                      onClick={() => handleStartGame(match)}
-                                    >
-                                      <PlayIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                                      {inProgress ? 'Continue' : 'Play'}
-                                    </Button>
-                                  </div>
-                                </div>
-                                
-                                <div className="grid grid-cols-[1fr_auto_1fr] gap-2 sm:gap-4 items-center">
-                                  {/* Team A players */}
-                                  <div className="space-y-1">
-                                    {match.teamAPlayers.map(playerId => {
-                                      const player = players.find(p => p.id === playerId);
-                                      return player ? (
-                                        <div 
-                                          key={playerId}
-                                          className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded bg-card text-xs sm:text-sm"
-                                        >
-                                          <div 
-                                            className="w-2 h-2 sm:w-3 sm:h-3 rounded-full shrink-0"
-                                            style={{ backgroundColor: teamA?.color }}
-                                          />
-                                          <span className="truncate">{player.name}</span>
-                                        </div>
-                                      ) : null;
-                                    })}
+                      
+                      {/* Show matches only if ready */}
+                      {isReady && displayMatches.length > 0 && (
+                        <CardContent className="p-4 sm:p-6 pt-3 sm:pt-4">
+                          <div className="space-y-2 sm:space-y-3">
+                            {displayMatches.map((match, matchIdx) => {
+                              const inProgress = isMatchInProgress(match.id);
+                              const completed = isMatchCompleted(match.id);
+                              
+                              return (
+                                <div 
+                                  key={match.id} 
+                                  className={`p-3 sm:p-4 rounded-lg border ${inProgress ? 'bg-primary/5 border-primary/30' : 'bg-muted/30'}`}
+                                >
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 mb-3">
+                                    <div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
+                                      <Swords className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                      {isSingles ? `Match ${matchIdx + 1}` : `Flight ${matchIdx + 1}`}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      {completed && (
+                                        <Badge variant="default" className="bg-green-600 text-xs">Completed</Badge>
+                                      )}
+                                      {inProgress && !completed && (
+                                        <Badge variant="outline" className="border-primary text-primary text-xs">In Progress</Badge>
+                                      )}
+                                      <Button 
+                                        variant={inProgress ? "outline" : "hero"}
+                                        size="sm"
+                                        className="text-xs"
+                                        onClick={() => handleStartGame(match)}
+                                      >
+                                        <PlayIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                                        {inProgress ? 'Continue' : 'Play'}
+                                      </Button>
+                                    </div>
                                   </div>
                                   
-                                  {/* VS */}
-                                  <div className="text-center">
-                                    <span className="text-xs sm:text-sm font-bold text-muted-foreground">VS</span>
-                                  </div>
-                                  
-                                  {/* Team B players */}
-                                  <div className="space-y-1">
-                                    {match.teamBPlayers.map(playerId => {
-                                      const player = players.find(p => p.id === playerId);
-                                      return player ? (
-                                        <div 
-                                          key={playerId}
-                                          className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded bg-card text-xs sm:text-sm"
-                                        >
+                                  <div className="grid grid-cols-[1fr_auto_1fr] gap-2 sm:gap-4 items-center">
+                                    {/* Team A players */}
+                                    <div className="space-y-1">
+                                      {match.teamAPlayers.map(playerId => {
+                                        const player = players.find(p => p.id === playerId);
+                                        return player ? (
                                           <div 
-                                            className="w-2 h-2 sm:w-3 sm:h-3 rounded-full shrink-0"
-                                            style={{ backgroundColor: teamB?.color }}
-                                          />
-                                          <span className="truncate">{player.name}</span>
-                                        </div>
-                                      ) : null;
-                                    })}
+                                            key={playerId}
+                                            className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded bg-card text-xs sm:text-sm"
+                                          >
+                                            <div 
+                                              className="w-2 h-2 sm:w-3 sm:h-3 rounded-full shrink-0"
+                                              style={{ backgroundColor: teamA?.color }}
+                                            />
+                                            <span className="truncate">{player.name}</span>
+                                          </div>
+                                        ) : null;
+                                      })}
+                                    </div>
+                                    
+                                    {/* VS */}
+                                    <div className="text-center">
+                                      <span className="text-xs sm:text-sm font-bold text-muted-foreground">VS</span>
+                                    </div>
+                                    
+                                    {/* Team B players */}
+                                    <div className="space-y-1">
+                                      {match.teamBPlayers.map(playerId => {
+                                        const player = players.find(p => p.id === playerId);
+                                        return player ? (
+                                          <div 
+                                            key={playerId}
+                                            className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded bg-card text-xs sm:text-sm"
+                                          >
+                                            <div 
+                                              className="w-2 h-2 sm:w-3 sm:h-3 rounded-full shrink-0"
+                                              style={{ backgroundColor: teamB?.color }}
+                                            />
+                                            <span className="truncate">{player.name}</span>
+                                          </div>
+                                        ) : null;
+                                      })}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </CardContent>
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      )}
+                      
+                      {/* Show message if not ready */}
+                      {!isReady && (
+                        <CardContent className="p-4 sm:p-6 pt-0">
+                          <div className="p-3 sm:p-4 rounded-lg bg-muted/50 text-center">
+                            <p className="text-xs sm:text-sm text-muted-foreground">
+                              {isPairing 
+                                ? 'Captains are setting up pairings. Both need to confirm before playing.'
+                                : 'Go to Sessions page to set up player pairings for this day.'
+                              }
+                            </p>
+                          </div>
+                        </CardContent>
+                      )}
                     </Card>
                   );
                 })}
