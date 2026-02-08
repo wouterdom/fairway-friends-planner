@@ -10,7 +10,9 @@ export function AppLayout({ children }: AppLayoutProps) {
     <div className="min-h-screen bg-background">
       <Navigation />
       <main className="md:ml-64 min-h-screen">
-        <div className="pt-16 md:pt-0">
+        {/* Mobile: Add padding for header (top) and bottom nav */}
+        {/* Desktop: No extra padding needed */}
+        <div className="pt-14 md:pt-0 pb-20 md:pb-0">
           {children}
         </div>
       </main>
