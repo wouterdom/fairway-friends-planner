@@ -1,73 +1,186 @@
-# Welcome to your Lovable project
+# Fairway Friends - Golf Leaderboard & Scoring App
 
-## Project info
+A modern web application for tracking golf competitions between friends. Supports both casual quick games and organized Ryder Cup-style competitions.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+![Golf Leaderboard](https://img.shields.io/badge/Golf-Leaderboard-green)
+![React](https://img.shields.io/badge/React-18.3-blue)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)
 
-## How can I edit this code?
+## 🎯 Features
 
-There are several ways of editing your application.
+### Two Game Modes
 
-**Use Lovable**
+**⚡ Quick Play** - Start playing immediately
+- No setup required
+- Choose format and scoring
+- Perfect for casual rounds
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+**🏆 Organized Competition** - Full Ryder Cup experience  
+- Team-based competition
+- Captain pairing system
+- Multiple golf days
+- Structured match play
 
-Changes made via Lovable will be committed automatically to this repo.
+### Supported Formats
+- **Singles** - 1v1 match play
+- **Four-Ball** - Better ball (2v2)
+- **High-Low** - Points per hole (2v2)
+- **Foursomes** - Alternate shot (2v2)
+- **Texas Scramble** - Team scramble
+- **Chapman** - Pinehurst format
 
-**Use your preferred IDE**
+### Scoring Types
+- **Stableford** - Points-based
+- **Stroke Play** - Total strokes
+- **Match Play** - Hole-by-hole
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🚀 Quick Start
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Local Development
 
-Follow these steps:
+```bash
+# Clone the repository
+git clone https://github.com/wouterdom/fairway-friends-planner.git
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Navigate to project
+cd fairway-friends-planner
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start development server
 npm run dev
+
+# Open http://localhost:8080
 ```
 
-**Edit a file directly in GitHub**
+### Just Play (No Setup)
+1. Open the app
+2. Click "Quick Play" 
+3. Select format and scoring
+4. Start playing immediately!
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Full Competition Setup
+1. **Dashboard** - Follow the 6-step checklist
+2. **Players** - Add players, assign to teams, set captains
+3. **Sessions** - Create Golf Days
+4. **Play** - Start organized games
 
-**Use GitHub Codespaces**
+## 📱 Mobile Friendly
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Fully responsive design works on:
+- iPhone / iPad
+- Android phones & tablets
+- Desktop browsers
 
-## What technologies are used for this project?
+## 🛠️ Tech Stack
 
-This project is built with:
+- **Frontend:** React 18.3 + TypeScript 5.8
+- **Build Tool:** Vite 5.4
+- **Styling:** Tailwind CSS 3.4
+- **UI Components:** shadcn/ui
+- **Icons:** Lucide React
+- **State:** React Context + localStorage
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 📁 Project Structure
 
-## How can I deploy this project?
+```
+src/
+├── pages/
+│   ├── Dashboard.tsx      # Setup checklist & stats
+│   ├── Players.tsx        # Player & team management
+│   ├── Fixtures.tsx       # Golf Days (Sessions)
+│   └── Play.tsx           # Quick Play + Organized
+├── components/
+│   ├── layout/
+│   │   ├── Navigation.tsx # Mobile/desktop nav
+│   │   └── AppLayout.tsx  # Page wrapper
+│   ├── ui/                # shadcn components
+│   ├── fixtures/          # Pairing management
+│   ├── leaderboard/       # Stats display
+│   └── play/              # Score entry
+├── contexts/
+│   ├── TripContext.tsx    # Main app state
+│   └── LeaderboardContext.tsx
+├── lib/
+│   ├── scoring.ts         # Golf scoring logic
+│   └── utils.ts
+└── types/
+    └── golf.ts            # TypeScript types
+```
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+## 📊 Data Model
 
-## Can I connect a custom domain to my Lovable project?
+The app uses localStorage for persistence:
 
-Yes, you can!
+- **Players** - Name, email, handicap
+- **Teams** - Two teams with players and captains
+- **Golf Days** - Date, course, format, matches
+- **Games** - Scores and completion status
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 🎮 How It Works
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### User Flow
+
+```
+Dashboard (Setup Checklist)
+    ↓
+Players (Add & Assign)
+    ↓
+Sessions (Create Golf Days)
+    ↓
+Captains Set Pairings
+    ↓
+Both Lock In
+    ↓
+Play (Score Matches)
+    ↓
+Leaderboard (Results)
+```
+
+### Quick Play Flow
+```
+Dashboard → Quick Play → Select Format → Play!
+```
+
+## 📝 Documentation
+
+See `/docs/` folder for detailed documentation:
+
+- **STATUS.md** - Current state and features
+- **business-rules.md** - Golf competition rules
+- **improvement-plan.md** - Development roadmap
+- **architecture.md** - Technical details
+
+## 🐛 Known Limitations
+
+- Data stored only in browser (localStorage)
+- No multi-device sync (each browser is separate)
+- No user accounts
+- No backend (yet)
+
+## 🔮 Future Enhancements
+
+Potential improvements:
+- [ ] PocketBase backend for sync
+- [ ] User authentication
+- [ ] Export results (PDF/Excel)
+- [ ] Historical stats
+- [ ] Push notifications
+- [ ] PWA support
+
+## 🤝 Contributing
+
+This project was built with the help of Claude AI assistant.
+
+## 📄 License
+
+MIT License - Feel free to use and modify!
+
+## 🏆 Credits
+
+Built for golf lovers who want to track competitions with friends!
+
+---
+
+**Ready to play?** `npm run dev` and hit the links! ⛳
