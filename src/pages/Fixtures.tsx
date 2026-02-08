@@ -5,13 +5,13 @@ import { useTrip } from '@/contexts/TripContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -19,6 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { 
   Trophy, 
   Plus,
@@ -26,541 +28,537 @@ import {
   Crown,
   Lock,
   Unlock,
+  Play,
+  Users,
   Swords,
-  Play
+  Zap,
+  ChevronRight,
+  Info,
+  CheckCircle2,
+  Clock,
+  AlertCircle
 } from 'lucide-react';
 import { CaptainFixtureManager } from '@/components/fixtures/CaptainFixtureManager';
-import { CreateFixtureDayDialog } from '@/components/fixtures/CreateFixtureDayDialog';
-import { LeaderboardView } from '@/components/leaderboard/LeaderboardView';
+import { GameFormat, ScoringType } from '@/types/golf';
 
-export default function Fixtures() {
+// Status types for a golf day
+ type DayStatus = 'draft' | 'pairing' | 'ready' | 'playing' | 'completed';
+
+interface GolfDay {
+  id: string;
+  name: string;
+  date: string;
+  courseName: string;
+  gameFormat: GameFormat;
+  scoringType: ScoringType;
+  status: DayStatus;
+  teamALockedIn: boolean;
+  teamBLockedIn: boolean;
+  matchesCount: number;
+  completedMatches: number;
+}
+
+export default function Sessions() {
   const navigate = useNavigate();
-  const { games, players, teams, fixtureDays, setCaptain } = useTrip();
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [selectedCaptainTeam, setSelectedCaptainTeam] = useState<'team-a' | 'team-b' | null>(null);
-  const [selectedFixtureDay, setSelectedFixtureDay] = useState<string | null>(null);
+  const { games, players, teams, fixtureDays } = useTrip();
+  const [mode, setMode] = useState<'list' | 'quick' | 'organized'>('list');
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [captainViewOpen, setCaptainViewOpen] = useState(false);
+  const [captainTeam, setCaptainTeam] = useState<'team-a' | 'team-b'>('team-a');
 
-  // Helper to check if a match is in progress from games array
-  const isMatchInProgress = (matchId: string) => {
-    return games.some(g => g.id === matchId && !g.completed);
+  // Convert fixtureDays to GolfDays with status
+  const golfDays: GolfDay[] = fixtureDays.map(fd => {
+    const matchesInDay = fd.matches?.length || 0;
+    const completedMatches = games.filter(g => 
+      g.id.includes(fd.id) && g.completed
+    ).length;
+    
+    let status: DayStatus = 'draft';
+    if (fd.teamALockedIn && fd.teamBLockedIn) {
+      status = completedMatches > 0 ? 'playing' : 'ready';
+      if (completedMatches === matchesInDay && matchesInDay > 0) {
+        status = 'completed';
+      }
+    } else if (fd.teamALockedIn || fd.teamBLockedIn) {
+      status = 'pairing';
+    }
+
+    return {
+      id: fd.id,
+      name: fd.courseName || `Day ${fd.dayNumber}`,
+      date: fd.date,
+      courseName: fd.courseName || '',
+      gameFormat: fd.gameFormat,
+      scoringType: fd.scoringType,
+      status,
+      teamALockedIn: fd.teamALockedIn,
+      teamBLockedIn: fd.teamBLockedIn,
+      matchesCount: matchesInDay,
+      completedMatches,
+    };
+  }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const getStatusConfig = (status: DayStatus) => {
+    switch (status) {
+      case 'draft':
+        return { 
+          label: 'Setup', 
+          color: 'bg-muted text-muted-foreground',
+          icon: Clock,
+          action: 'Setup Matches',
+          description: 'Captains need to set pairings'
+        };
+      case 'pairing':
+        return { 
+          label: 'Pairing', 
+          color: 'bg-warning/20 text-warning border-warning',
+          icon: Users,
+          action: 'Continue Setup',
+          description: 'One captain done, waiting for other'
+        };
+      case 'ready':
+        return { 
+          label: 'Ready', 
+          color: 'bg-success/20 text-success border-success',
+          icon: CheckCircle2,
+          action: 'Start Playing',
+          description: 'All set! Ready to play'
+        };
+      case 'playing':
+        return { 
+          label: 'In Progress', 
+          color: 'bg-primary/20 text-primary border-primary',
+          icon: Play,
+          action: 'Continue',
+          description: 'Games in progress'
+        };
+      case 'completed':
+        return { 
+          label: 'Complete', 
+          color: 'bg-accent/20 text-accent border-accent',
+          icon: Trophy,
+          action: 'View Results',
+          description: 'All matches completed'
+        };
+    }
   };
 
-  // Helper to check if a match is completed
-  const isMatchCompleted = (matchId: string) => {
-    return games.some(g => g.id === matchId && g.completed);
+  const handleQuickPlay = () => {
+    // Navigate to play with quick game mode
+    navigate('/play', { state: { mode: 'quick' } });
   };
 
-  const getTeamName = (teamId?: string) => {
-    if (!teamId) return 'All Players';
-    return teams.find(t => t.id === teamId)?.name || 'Unknown';
+  const handleSetupMatches = (dayId: string) => {
+    setSelectedDay(dayId);
+    setCaptainViewOpen(true);
   };
 
-  const getTeamColor = (teamId?: string) => {
-    if (!teamId) return '#888';
-    return teams.find(t => t.id === teamId)?.color || '#888';
+  const handleCreateDay = () => {
+    setShowCreateDialog(true);
   };
-
-  const getPlayerName = (playerId: string) => {
-    return players.find(p => p.id === playerId)?.name || 'Unknown';
-  };
-
-  const calculateLeaderboard = () => {
-    const playerScores = new Map<string, { total: number; gamesPlayed: number }>();
-
-    games.forEach(game => {
-      Object.entries(game.scores).forEach(([playerId, scores]) => {
-        const total = scores.reduce((a, b) => a + b, 0);
-        const existing = playerScores.get(playerId) || { total: 0, gamesPlayed: 0 };
-        playerScores.set(playerId, {
-          total: existing.total + total,
-          gamesPlayed: existing.gamesPlayed + 1,
-        });
-      });
-    });
-
-    return Array.from(playerScores.entries())
-      .map(([playerId, data]) => ({
-        player: players.find(p => p.id === playerId),
-        ...data,
-        average: data.total / data.gamesPlayed,
-      }))
-      .filter(entry => entry.player)
-      .sort((a, b) => a.total - b.total);
-  };
-
-  const leaderboard = calculateLeaderboard();
-  const selectedDay = fixtureDays.find(fd => fd.id === selectedFixtureDay);
 
   const teamA = teams.find(t => t.id === 'team-a');
   const teamB = teams.find(t => t.id === 'team-b');
+  const selectedDayData = fixtureDays.find(fd => fd.id === selectedDay);
 
   return (
     <AppLayout>
-      <div className="p-6 md:p-8 max-w-7xl mx-auto">
+      <div className="p-4 sm:p-6 md:p-8 max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8 animate-fade-up">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-6 md:mb-8 animate-fade-up">
           <div>
-            <h1 className="font-display text-3xl font-bold text-foreground mb-2">
-              Golf Days (Sessions)
+            <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-1 sm:mb-2">
+              Golf Days
             </h1>
-            <p className="text-muted-foreground">
-              Create and manage competition days. Each day is a separate session with matches.
+            <p className="text-sm sm:text-base text-muted-foreground">
+              {golfDays.length > 0 
+                ? `${golfDays.length} day${golfDays.length > 1 ? 's' : ''} scheduled`
+                : 'Create your first golf day to get started'
+              }
             </p>
           </div>
-
-          <Button variant="hero" size="lg" onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="w-5 h-5 mr-2" />
-            Add Golf Day
+          <Button variant="hero" size="sm" className="sm:h-11 sm:px-6" onClick={handleCreateDay}>
+            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">New Golf Day</span>
+            <span className="sm:hidden">New Day</span>
           </Button>
         </div>
 
-        {/* What are Golf Days? */}
-        <Card className="mb-6 border-accent/50 bg-accent/5 animate-fade-up">
-          <CardContent className="p-6">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center shrink-0">
-                <Calendar className="w-5 h-5 text-accent" />
+        {/* Mode Selection Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6 md:mb-8 animate-fade-up">
+          {/* Quick Play Card */}
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-all border-2 hover:border-primary/50 group"
+            onClick={handleQuickPlay}
+          >
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-warning/20 flex items-center justify-center shrink-0 group-hover:bg-warning/30 transition-colors">
+                  <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-warning" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-foreground text-base sm:text-lg mb-1">Quick Play</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-3">
+                    Start playing immediately with casual matches. No setup needed.
+                  </p>
+                  <div className="flex items-center text-xs sm:text-sm text-primary font-medium">
+                    Play Now
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </div>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-foreground mb-1">What are Golf Days?</h3>
-                <p className="text-sm text-muted-foreground">
-                  Each "Golf Day" represents one day of your competition trip. For example:
-                </p>
-                <ul className="text-sm text-muted-foreground mt-2 space-y-1 list-disc list-inside">
-                  <li><strong>Day 1:</strong> Friday at St Andrews - Playing Four-Ball</li>
-                  <li><strong>Day 2:</strong> Saturday at Carnoustie - Playing Singles</li>
-                </ul>
-                <p className="text-sm text-muted-foreground mt-2">
-                  You can create multiple days, each with different formats and pairings.
-                </p>
+            </CardContent>
+          </Card>
+
+          {/* Organized Day Card */}
+          <Card 
+            className="cursor-pointer hover:shadow-lg transition-all border-2 hover:border-primary/50 group"
+            onClick={handleCreateDay}
+          >
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/20 transition-colors">
+                  <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-foreground text-base sm:text-lg mb-1">Organized Day</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-3">
+                    Full competition setup with captains, pairings, and structured matches.
+                  </p>
+                  <div className="flex items-center text-xs sm:text-sm text-primary font-medium">
+                    Create Day
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </div>
+                </div>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* How It Works */}
+        {golfDays.length === 0 && (
+          <Card className="mb-6 border-accent/50 bg-accent/5 animate-fade-up">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-start gap-3 sm:gap-4">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-accent/20 flex items-center justify-center shrink-0">
+                  <Info className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-foreground mb-1 text-sm sm:text-base">How Golf Days Work</h3>
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-3">
+                    Each day represents one session of your competition:
+                  </p>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-xs sm:text-sm">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-muted flex items-center justify-center shrink-0 text-[10px] sm:text-xs font-medium">1</div>
+                      <span className="text-muted-foreground">Create a day (select course, format, date)</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs sm:text-sm">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-muted flex items-center justify-center shrink-0 text-[10px] sm:text-xs font-medium">2</div>
+                      <span className="text-muted-foreground">Captains set player pairings</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs sm:text-sm">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-muted flex items-center justify-center shrink-0 text-[10px] sm:text-xs font-medium">3</div>
+                      <span className="text-muted-foreground">Both captains lock in selections</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs sm:text-sm">
+                      <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-muted flex items-center justify-center shrink-0 text-[10px] sm:text-xs font-medium">4</div>
+                      <span className="text-muted-foreground">Start playing and scoring!</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Golf Days List */}
+        {golfDays.length > 0 && (
+          <div className="space-y-3 sm:space-y-4 animate-fade-up">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg sm:text-xl font-semibold text-foreground">
+                Your Golf Days
+              </h2>
+              <Badge variant="outline" className="text-xs sm:text-sm">
+                {golfDays.filter(d => d.status === 'ready' || d.status === 'playing').length} active
+              </Badge>
             </div>
-          </CardContent>
-        </Card>
 
-        <Tabs defaultValue="captain" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg grid-cols-3">
-            <TabsTrigger value="captain" className="flex items-center gap-2">
-              <Crown className="w-4 h-4" />
-              Captain View
-            </TabsTrigger>
-            <TabsTrigger value="leaderboard">Leaderboard</TabsTrigger>
-            <TabsTrigger value="games">All Games</TabsTrigger>
-          </TabsList>
+            <div className="space-y-3">
+              {golfDays.map((day, index) => {
+                const statusConfig = getStatusConfig(day.status);
+                const StatusIcon = statusConfig.icon;
+                const progress = day.matchesCount > 0 
+                  ? (day.completedMatches / day.matchesCount) * 100 
+                  : 0;
 
-          {/* Captain View Tab */}
-          <TabsContent value="captain" className="space-y-6">
-            {/* Team & Day Selection */}
-            <Card className="animate-fade-up">
-              <CardContent className="pt-6">
-                <Accordion type="single" collapsible defaultValue="selection">
-                  <AccordionItem value="selection" className="border-none">
-                    <AccordionTrigger className="hover:no-underline py-0 mb-4">
-                      <div className="flex items-center gap-2">
-                        <Swords className="w-5 h-5" />
-                        <span className="font-display text-lg">Captain Fixture Management</span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Select your team to manage fixture matchups. Both captains must lock in their selections.
-                      </p>
-                      
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium mb-2 block">Select Your Team</label>
-                          <Select
-                            value={selectedCaptainTeam || ''}
-                            onValueChange={(value) => setSelectedCaptainTeam(value as 'team-a' | 'team-b')}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose team..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="team-a">
-                                <div className="flex items-center gap-2">
-                                  <div 
-                                    className="w-3 h-3 rounded-full"
-                                    style={{ backgroundColor: teamA?.color }}
-                                  />
-                                  <Crown className="w-4 h-4" />
-                                  {teamA?.name || 'Team A'} Captain
-                                </div>
-                              </SelectItem>
-                              <SelectItem value="team-b">
-                                <div className="flex items-center gap-2">
-                                  <div 
-                                    className="w-3 h-3 rounded-full"
-                                    style={{ backgroundColor: teamB?.color }}
-                                  />
-                                  <Crown className="w-4 h-4" />
-                                  {teamB?.name || 'Team B'} Captain
-                                </div>
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-
-                        <div>
-                          <label className="text-sm font-medium mb-2 block">Select Fixture Day</label>
-                          <Select
-                            value={selectedFixtureDay || ''}
-                            onValueChange={setSelectedFixtureDay}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="Choose day..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {fixtureDays.length > 0 ? (
-                                fixtureDays.map(fd => (
-                                  <SelectItem key={fd.id} value={fd.id}>
-                                    <div className="flex items-center gap-2">
-                                      <Calendar className="w-4 h-4" />
-                                      Day {fd.dayNumber} - {new Date(fd.date).toLocaleDateString()}
-                                      {fd.isFinalized && <Badge variant="secondary" className="ml-2">Finalized</Badge>}
-                                    </div>
-                                  </SelectItem>
-                                ))
-                              ) : (
-                                <div className="p-4 text-center text-sm text-muted-foreground">
-                                  No fixture days created yet
-                                </div>
-                              )}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-
-                  {/* Fixture Day Summary */}
-                  {fixtureDays.length > 0 && (
-                    <AccordionItem value="fixture-days" className="border-none">
-                      <AccordionTrigger className="hover:no-underline py-0 mt-4">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-5 h-5" />
-                          <span className="font-medium">Fixture Days Overview</span>
-                          <Badge variant="secondary" className="ml-2">{fixtureDays.length}</Badge>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="grid gap-3 pt-2">
-                          {fixtureDays.map(fd => (
-                            <div 
-                              key={fd.id}
-                              className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                                selectedFixtureDay === fd.id 
-                                  ? 'border-primary bg-primary/5' 
-                                  : 'hover:border-primary/50'
-                              }`}
-                              onClick={() => setSelectedFixtureDay(fd.id)}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                                    <span className="font-bold text-foreground">{fd.dayNumber}</span>
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-foreground">
-                                      {fd.courseName || `Day ${fd.dayNumber}`}
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                      {new Date(fd.date).toLocaleDateString('en-US', { 
-                                        weekday: 'short', 
-                                        month: 'short', 
-                                        day: 'numeric' 
-                                      })} • {fd.gameFormat.replace('-', ' ')}
-                                    </p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Badge 
-                                    variant={fd.teamALockedIn ? "default" : "outline"}
-                                    className="text-xs"
-                                  >
-                                    {fd.teamALockedIn ? <Lock className="w-3 h-3 mr-1" /> : <Unlock className="w-3 h-3 mr-1" />}
-                                    A
-                                  </Badge>
-                                  <Badge 
-                                    variant={fd.teamBLockedIn ? "default" : "outline"}
-                                    className="text-xs"
-                                  >
-                                    {fd.teamBLockedIn ? <Lock className="w-3 h-3 mr-1" /> : <Unlock className="w-3 h-3 mr-1" />}
-                                    B
-                                  </Badge>
-                                </div>
+                return (
+                  <Card 
+                    key={day.id} 
+                    className="overflow-hidden hover:shadow-md transition-shadow"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    <CardContent className="p-0">
+                      <div className="p-3 sm:p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                          {/* Day Number & Info */}
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                              <span className="font-bold text-foreground text-sm sm:text-base">{index + 1}</span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-semibold text-foreground text-sm sm:text-base truncate">
+                                {day.name}
+                              </h3>
+                              <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
+                                <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                                <span>{new Date(day.date).toLocaleDateString('en-US', { 
+                                  weekday: 'short', 
+                                  month: 'short', 
+                                  day: 'numeric' 
+                                })}</span>
+                                <span className="hidden sm:inline">•</span>
+                                <span className="capitalize">{day.gameFormat.replace('-', ' ')}</span>
                               </div>
                             </div>
-                          ))}
+                          </div>
+
+                          {/* Status Badge */}
+                          <div className="flex items-center gap-2 sm:gap-3 sm:ml-auto">
+                            <Badge 
+                              variant="outline" 
+                              className={`${statusConfig.color} border text-xs sm:text-sm whitespace-nowrap`}
+                            >
+                              <StatusIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5 mr-1" />
+                              <span className="hidden sm:inline">{statusConfig.label}</span>
+                              <span className="sm:hidden">{statusConfig.label.slice(0, 4)}</span>
+                            </Badge>
+
+                            {/* Action Button */}
+                            {day.status === 'ready' && (
+                              <Button 
+                                size="sm" 
+                                onClick={() => navigate('/play')}
+                                className="text-xs sm:text-sm whitespace-nowrap"
+                              >
+                                <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                Play
+                              </Button>
+                            )}
+                            {day.status === 'playing' && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => navigate('/play')}
+                                className="text-xs sm:text-sm whitespace-nowrap"
+                              >
+                                Continue
+                              </Button>
+                            )}
+                            {(day.status === 'draft' || day.status === 'pairing') && (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleSetupMatches(day.id)}
+                                className="text-xs sm:text-sm whitespace-nowrap"
+                              >
+                                <Users className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                                <span className="hidden sm:inline">Setup</span>
+                                <span className="sm:hidden">Set</span>
+                              </Button>
+                            )}
+                            {day.status === 'completed' && (
+                              <Button 
+                                size="sm" 
+                                variant="ghost"
+                                onClick={() => navigate('/play')}
+                                className="text-xs sm:text-sm"
+                              >
+                                View
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  )}
-                </Accordion>
-              </CardContent>
-            </Card>
 
-            {/* Captain Fixture Manager */}
-            {selectedCaptainTeam && selectedDay && (
-              <CaptainFixtureManager
-                fixtureDay={selectedDay}
-                captainTeam={selectedCaptainTeam}
-              />
-            )}
+                        {/* Progress Bar (if playing or completed) */}
+                        {(day.status === 'playing' || day.status === 'completed') && day.matchesCount > 0 && (
+                          <div className="mt-3 pt-3 border-t">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="text-muted-foreground">Progress</span>
+                              <span className="font-medium">{day.completedMatches}/{day.matchesCount} matches</span>
+                            </div>
+                            <Progress value={progress} className="h-1.5 sm:h-2" />
+                          </div>
+                        )}
 
-            {/* Empty State */}
-            {!selectedCaptainTeam && fixtureDays.length === 0 && (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Crown className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
-                  <p className="text-lg font-medium text-foreground mb-2">No Fixture Days Yet</p>
-                  <p className="text-muted-foreground mb-6">
-                    Create a fixture day to start managing team matchups
-                  </p>
-                  <Button variant="hero" onClick={() => setCreateDialogOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Fixture Day
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
+                        {/* Setup Progress (if draft/pairing) */}
+                        {(day.status === 'draft' || day.status === 'pairing') && (
+                          <div className="mt-3 pt-3 border-t flex items-center gap-3 text-xs sm:text-sm">
+                            <div className="flex items-center gap-1">
+                              {day.teamALockedIn ? (
+                                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success" />
+                              ) : (
+                                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
+                              )}
+                              <span className={day.teamALockedIn ? 'text-success' : 'text-muted-foreground'}>
+                                {teamA?.name || 'Team A'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              {day.teamBLockedIn ? (
+                                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-success" />
+                              ) : (
+                                <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted-foreground" />
+                              )}
+                              <span className={day.teamBLockedIn ? 'text-success' : 'text-muted-foreground'}>
+                                {teamB?.name || 'Team B'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-          {/* Leaderboard Tab */}
-          <TabsContent value="leaderboard" className="space-y-6">
-            <LeaderboardView />
-          </TabsContent>
-
-          {/* Games Tab - Shows finalized fixture day matches */}
-          <TabsContent value="games" className="space-y-6">
-            {fixtureDays.filter(fd => fd.teamALockedIn && fd.teamBLockedIn).length > 0 ? (
-              <Card className="animate-fade-up">
-                <CardContent className="pt-6">
-                  <Accordion type="multiple" defaultValue={fixtureDays.filter(fd => fd.teamALockedIn && fd.teamBLockedIn).map(fd => fd.id)}>
-                    {fixtureDays
-                      .filter(fd => fd.teamALockedIn && fd.teamBLockedIn)
-                      .map((fixtureDay) => {
-                        const isSingles = fixtureDay.gameFormat === 'singles';
-                        
-                        // Generate matches for display
-                        const displayMatches = isSingles 
-                          ? fixtureDay.matches 
-                          : (fixtureDay.teamAPairings || []).map((teamAPlayers, idx) => ({
-                              id: `match-${fixtureDay.id}-${idx}`,
-                              teamAPlayers: teamAPlayers || [],
-                              teamBPlayers: fixtureDay.teamBPairings?.[idx] || [],
-                            }));
-                        
-                        return (
-                          <AccordionItem key={fixtureDay.id} value={fixtureDay.id} className="border-none mb-4">
-                            <AccordionTrigger className="hover:no-underline p-4 rounded-lg bg-muted/30 border">
-                              <div className="flex items-center gap-3 w-full pr-4">
-                                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                                  <span className="font-bold text-primary">{fixtureDay.dayNumber}</span>
-                                </div>
-                                <div className="text-left flex-1">
-                                  <p className="font-display text-base font-semibold">
-                                    {fixtureDay.courseName || `Day ${fixtureDay.dayNumber}`}
-                                  </p>
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <Calendar className="w-3 h-3" />
-                                    {new Date(fixtureDay.date).toLocaleDateString('en-US', { 
-                                      weekday: 'short', 
-                                      month: 'short', 
-                                      day: 'numeric' 
-                                    })}
-                                    <span>•</span>
-                                    <span className="capitalize">{fixtureDay.gameFormat.replace('-', ' ')}</span>
-                                  </div>
-                                </div>
-                                <Badge variant="default" className="gap-1">
-                                  <Lock className="w-3 h-3" />
-                                  Finalized
-                                </Badge>
-                              </div>
-                            </AccordionTrigger>
-                            <AccordionContent className="pt-4">
-                              <div className="space-y-3">
-                                {displayMatches.map((match, matchIdx) => {
-                                  const inProgress = isMatchInProgress(match.id);
-                                  const completed = isMatchCompleted(match.id);
-                                  
-                                  // Try to load match scores from localStorage
-                                  let matchStatus = { teamA: 'TIED', teamB: 'TIED', hasScores: false, validatedCount: 0 };
-                                  try {
-                                    const stored = localStorage.getItem(`golf-match-scores-${match.id}`);
-                                    if (stored) {
-                                      const data = JSON.parse(stored);
-                                      const validatedHoles = data.validatedHoles || [];
-                                      const scores = data.scores || {};
-                                      const validatedCount = validatedHoles.filter((v: boolean) => v).length;
-                                      
-                                      if (validatedHoles.some((v: boolean) => v)) {
-                                        // Calculate team scores for validated holes only
-                                        let teamATotal = 0;
-                                        let teamBTotal = 0;
-                                        
-                                        for (let hole = 0; hole < 18; hole++) {
-                                          if (!validatedHoles[hole]) continue;
-                                          
-                                          // Simple net score calculation
-                                          const teamANets = match.teamAPlayers.map((pid: string) => {
-                                            const gross = scores[pid]?.[hole] || 0;
-                                            return gross > 0 ? gross : null;
-                                          }).filter((n: number | null): n is number => n !== null);
-                                          
-                                          const teamBNets = match.teamBPlayers.map((pid: string) => {
-                                            const gross = scores[pid]?.[hole] || 0;
-                                            return gross > 0 ? gross : null;
-                                          }).filter((n: number | null): n is number => n !== null);
-                                          
-                                          if (teamANets.length > 0) teamATotal += Math.min(...teamANets);
-                                          if (teamBNets.length > 0) teamBTotal += Math.min(...teamBNets);
-                                        }
-                                        
-                                        const diff = teamBTotal - teamATotal; // Lower is better in stroke play
-                                        if (diff > 0) {
-                                          matchStatus = { teamA: `${diff} UP`, teamB: `${diff} DOWN`, hasScores: true, validatedCount };
-                                        } else if (diff < 0) {
-                                          matchStatus = { teamA: `${Math.abs(diff)} DOWN`, teamB: `${Math.abs(diff)} UP`, hasScores: true, validatedCount };
-                                        } else {
-                                          matchStatus = { teamA: 'TIED', teamB: 'TIED', hasScores: true, validatedCount };
-                                        }
-                                      }
-                                    }
-                                  } catch (e) {
-                                    console.error('Failed to load match scores:', e);
-                                  }
-                                  
-                                  return (
-                                    <div 
-                                      key={match.id} 
-                                      className={`p-4 rounded-lg border ${inProgress ? 'bg-primary/5 border-primary/30' : 'bg-muted/50'}`}
-                                    >
-                                      <div className="flex items-center justify-between mb-3">
-                                        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                                          <Swords className="w-4 h-4" />
-                                          {isSingles ? `Match ${matchIdx + 1}` : `Flight ${matchIdx + 1}`}
-                                          {matchStatus.hasScores && matchStatus.validatedCount > 0 && (
-                                            <Badge variant="secondary" className="ml-2">
-                                              {matchStatus.validatedCount}/18 holes
-                                            </Badge>
-                                          )}
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                          {completed && (
-                                            <Badge variant="default" className="bg-green-600">Completed</Badge>
-                                          )}
-                                          {inProgress && !completed && (
-                                            <Badge variant="outline" className="border-primary text-primary">In Progress</Badge>
-                                          )}
-                                          <Button 
-                                            variant={inProgress ? "outline" : "hero"}
-                                            size="sm"
-                                            onClick={() => navigate('/play')}
-                                          >
-                                            <Play className="w-4 h-4 mr-2" />
-                                            {inProgress ? 'Continue' : 'Play'}
-                                          </Button>
-                                        </div>
-                                      </div>
-                                      <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center">
-                                        {/* Team A players with status */}
-                                        <div className="space-y-2">
-                                          {matchStatus.hasScores && (
-                                            <div className={`text-center font-bold text-lg mb-2 ${
-                                              matchStatus.teamA.includes('UP') ? 'text-green-600' : 
-                                              matchStatus.teamA.includes('DOWN') ? 'text-red-500' : 'text-foreground'
-                                            }`}>
-                                              {matchStatus.teamA}
-                                            </div>
-                                          )}
-                                          {match.teamAPlayers.map(playerId => {
-                                            const player = players.find(p => p.id === playerId);
-                                            return player ? (
-                                              <div 
-                                                key={playerId}
-                                                className="flex items-center gap-2 p-2 rounded bg-card"
-                                              >
-                                                <div 
-                                                  className="w-3 h-3 rounded-full"
-                                                  style={{ backgroundColor: teamA?.color }}
-                                                />
-                                                <span className="text-sm font-medium">{player.name}</span>
-                                                <span className="text-xs text-muted-foreground ml-auto">
-                                                  ({player.handicap})
-                                                </span>
-                                              </div>
-                                            ) : null;
-                                          })}
-                                        </div>
-                                        
-                                        {/* VS */}
-                                        <div className="text-center">
-                                          <span className="text-sm font-bold text-muted-foreground">VS</span>
-                                        </div>
-                                        
-                                        {/* Team B players with status */}
-                                        <div className="space-y-2">
-                                          {matchStatus.hasScores && (
-                                            <div className={`text-center font-bold text-lg mb-2 ${
-                                              matchStatus.teamB.includes('UP') ? 'text-green-600' : 
-                                              matchStatus.teamB.includes('DOWN') ? 'text-red-500' : 'text-foreground'
-                                            }`}>
-                                              {matchStatus.teamB}
-                                            </div>
-                                          )}
-                                          {match.teamBPlayers.map(playerId => {
-                                            const player = players.find(p => p.id === playerId);
-                                            return player ? (
-                                              <div 
-                                                key={playerId}
-                                                className="flex items-center gap-2 p-2 rounded bg-card"
-                                              >
-                                                <div 
-                                                  className="w-3 h-3 rounded-full"
-                                                  style={{ backgroundColor: teamB?.color }}
-                                                />
-                                                <span className="text-sm font-medium">{player.name}</span>
-                                                <span className="text-xs text-muted-foreground ml-auto">
-                                                  ({player.handicap})
-                                                </span>
-                                              </div>
-                                            ) : null;
-                                          })}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </AccordionContent>
-                          </AccordionItem>
-                        );
-                      })}
-                  </Accordion>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Calendar className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-30" />
-                  <p className="text-lg font-medium text-foreground mb-2">No games scheduled</p>
-                  <p className="text-muted-foreground mb-6">
-                    Both captains must lock in their selections to finalize games
-                  </p>
-                  <Button variant="hero" onClick={() => setCreateDialogOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Fixture Day
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+        {/* Empty State */}
+        {golfDays.length === 0 && (
+          <Card className="animate-fade-up">
+            <CardContent className="py-8 sm:py-12 text-center">
+              <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 text-muted-foreground opacity-30" />
+              <p className="text-base sm:text-lg font-medium text-foreground mb-2">No Golf Days Yet</p>
+              <p className="text-sm text-muted-foreground mb-4 sm:mb-6 max-w-md mx-auto">
+                Create your first golf day to start tracking matches and scores
+              </p>
+              <Button variant="hero" size="sm" className="sm:h-10 sm:px-6" onClick={handleCreateDay}>
+                <Plus className="w-4 h-4 mr-2" />
+                Create First Day
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      <CreateFixtureDayDialog open={createDialogOpen} onOpenChange={setCreateDialogOpen} />
+      {/* Create Day Dialog */}
+      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg sm:text-xl">Create New Golf Day</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label className="text-sm">Day Name</Label>
+              <Input 
+                placeholder="e.g., St Andrews" 
+                className="mt-1.5"
+                defaultValue={`Day ${golfDays.length + 1}`}
+              />
+            </div>
+            <div>
+              <Label className="text-sm">Date</Label>
+              <Input 
+                type="date" 
+                className="mt-1.5"
+                defaultValue={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+            <div>
+              <Label className="text-sm">Game Format</Label>
+              <Select defaultValue="singles">
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="singles">Singles (1v1)</SelectItem>
+                  <SelectItem value="four-ball">Four-Ball (Better Ball)</SelectItem>
+                  <SelectItem value="high-low">High-Low</SelectItem>
+                  <SelectItem value="foursomes">Foursomes (Alternate Shot)</SelectItem>
+                  <SelectItem value="texas-scramble">Texas Scramble</SelectItem>
+                  <SelectItem value="chapman">Chapman</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-sm">Scoring Type</Label>
+              <Select defaultValue="stableford">
+                <SelectTrigger className="mt-1.5">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="stableford">Stableford (Points)</SelectItem>
+                  <SelectItem value="strokeplay">Stroke Play (Strokes)</SelectItem>
+                  <SelectItem value="matchplay">Match Play (Holes)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setShowCreateDialog(false)}>
+                Cancel
+              </Button>
+              <Button className="flex-1" onClick={() => {
+                // TODO: Actually create the day
+                setShowCreateDialog(false);
+              }}>
+                Create Day
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Captain Setup Dialog */}
+      {selectedDayData && (
+        <Dialog open={captainViewOpen} onOpenChange={setCaptainViewOpen}>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="font-display text-lg sm:text-xl flex items-center gap-2">
+                <Crown className="w-5 h-5 text-warning" />
+                Setup Matches: {selectedDayData.courseName || `Day ${selectedDayData.dayNumber}`}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="pt-4">
+              {/* Captain Selection */}
+              <div className="mb-4 p-3 sm:p-4 rounded-lg bg-muted/50">
+                <Label className="text-sm mb-2 block">Select Your Team</Label>
+                <div className="flex gap-2">
+                  <Button
+                    variant={captainTeam === 'team-a' ? 'default' : 'outline'}
+                    className="flex-1"
+                    onClick={() => setCaptainTeam('team-a')}
+                  >
+                    <div 
+                      className="w-3 h-3 rounded-full mr-2"
+                      style={{ backgroundColor: teamA?.color }}
+                    />
+                    {teamA?.name || 'Team A'}
+                  </Button>
+                  <Button
+                    variant={captainTeam === 'team-b' ? 'default' : 'outline'}
+                    className="flex-1"
+                    onClick={() => setCaptainTeam('team-b')}
+                  >
+                    <div 
+                      className="w-3 h-3 rounded-full mr-2"
+                      style={{ backgroundColor: teamB?.color }}
+                    />
+                    {teamB?.name || 'Team B'}
+                  </Button>
+                </div>
+              </div>
+
+              <CaptainFixtureManager
+                fixtureDay={selectedDayData}
+                captainTeam={captainTeam}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </AppLayout>
   );
 }
