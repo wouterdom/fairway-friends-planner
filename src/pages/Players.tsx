@@ -30,16 +30,15 @@ import {
   Users, 
   Mail, 
   Target,
-  DollarSign,
-  CheckCircle2,
-  Clock,
-  AlertCircle,
   Pencil,
   Trash2,
   ChevronDown,
-  Crown
+  Crown,
+  ArrowRight,
+  Info
 } from 'lucide-react';
 import { Player, Team } from '@/types/golf';
+import { Link } from 'react-router-dom';
 
 export default function Players() {
   const { players, addPlayer, teams, setTeams, updatePlayer, updateTeamName, removePlayer, setCaptain } = useTrip();
@@ -65,9 +64,6 @@ export default function Players() {
       name: newPlayer.name.trim(),
       email: newPlayer.email.trim() || '',
       handicap: newPlayer.handicap,
-      paymentStatus: 'pending',
-      amountPaid: 0,
-      amountOwed: 800,
     };
 
     addPlayer(player);
@@ -85,7 +81,6 @@ export default function Players() {
       setTeams(prev => prev.map(t => ({
         ...t,
         players: t.players.filter(p => p !== playerId),
-        // Also remove captain if this player was captain
         captainId: t.captainId === playerId ? undefined : t.captainId,
       })));
     } else {
@@ -94,7 +89,6 @@ export default function Players() {
         players: t.id === teamId 
           ? [...t.players.filter(p => p !== playerId), playerId]
           : t.players.filter(p => p !== playerId),
-        // Remove captain if player is moving to different team
         captainId: t.captainId === playerId && t.id !== teamId ? undefined : t.captainId,
       })));
     }
@@ -116,32 +110,9 @@ export default function Players() {
   const toggleCaptain = (teamId: 'team-a' | 'team-b', playerId: string) => {
     const team = teams.find(t => t.id === teamId);
     if (team?.captainId === playerId) {
-      // Remove captain
       setTeams(prev => prev.map(t => t.id === teamId ? { ...t, captainId: undefined } : t));
     } else {
       setCaptain(teamId, playerId);
-    }
-  };
-
-  const getStatusIcon = (status: Player['paymentStatus']) => {
-    switch (status) {
-      case 'paid':
-        return <CheckCircle2 className="w-4 h-4 text-success" />;
-      case 'pending':
-        return <Clock className="w-4 h-4 text-warning" />;
-      case 'overdue':
-        return <AlertCircle className="w-4 h-4 text-destructive" />;
-    }
-  };
-
-  const getStatusVariant = (status: Player['paymentStatus']) => {
-    switch (status) {
-      case 'paid':
-        return 'default';
-      case 'pending':
-        return 'secondary';
-      case 'overdue':
-        return 'destructive';
     }
   };
 
@@ -212,65 +183,52 @@ export default function Players() {
             </Button>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-xs">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm p-2 bg-muted/50 rounded">
               <div className="flex items-center gap-1.5 text-muted-foreground">
                 <Target className="w-3.5 h-3.5" />
                 <span>Handicap</span>
               </div>
-              <span className="font-semibold text-foreground">{player.handicap}</span>
+              <span className="font-semibold text-foreground text-lg">{player.handicap}</span>
             </div>
 
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <DollarSign className="w-3.5 h-3.5" />
-                <span>Payment</span>
-              </div>
-              <Badge variant={getStatusVariant(player.paymentStatus)} className="gap-1 text-xs py-0">
-                {getStatusIcon(player.paymentStatus)}
-                <span className="capitalize">{player.paymentStatus}</span>
-              </Badge>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Assign to Team</Label>
+              <Select 
+                value={team?.id || 'none'} 
+                onValueChange={(value) => assignToTeam(player.id, value)}
+              >
+                <SelectTrigger className="w-full h-8 text-xs">
+                  <SelectValue placeholder="Select team" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {teams.map(t => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-2.5 h-2.5 rounded-full"
+                          style={{ backgroundColor: t.color }}
+                        />
+                        {t.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="pt-2 border-t border-border space-y-2">
-              <div>
-                <Label className="text-xs text-muted-foreground mb-1 block">Team</Label>
-                <Select 
-                  value={team?.id || 'none'} 
-                  onValueChange={(value) => assignToTeam(player.id, value)}
-                >
-                  <SelectTrigger className="w-full h-8 text-xs">
-                    <SelectValue placeholder="Assign to team" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No team</SelectItem>
-                    {teams.map(t => (
-                      <SelectItem key={t.id} value={t.id}>
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-2.5 h-2.5 rounded-full"
-                            style={{ backgroundColor: t.color }}
-                          />
-                          {t.name}
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {team && (
-                <Button
-                  variant={isCaptain ? "secondary" : "outline"}
-                  size="sm"
-                  className="w-full h-7 text-xs"
-                  onClick={() => toggleCaptain(team.id, player.id)}
-                >
-                  <Crown className="w-3 h-3 mr-1.5" />
-                  {isCaptain ? 'Remove Captain' : 'Make Captain'}
-                </Button>
-              )}
-            </div>
+            {team && (
+              <Button
+                variant={isCaptain ? "secondary" : "outline"}
+                size="sm"
+                className="w-full h-8 text-xs"
+                onClick={() => toggleCaptain(team.id, player.id)}
+              >
+                <Crown className="w-3 h-3 mr-1.5" />
+                {isCaptain ? 'Remove as Captain' : 'Make Captain'}
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -284,66 +242,104 @@ export default function Players() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8 animate-fade-up">
           <div>
             <h1 className="font-display text-3xl font-bold text-foreground mb-2">
-              Players
+              Players & Teams
             </h1>
             <p className="text-muted-foreground">
-              Manage your group of {players.length} players
+              Manage {players.length} players across {teams.length} teams
             </p>
           </div>
 
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button variant="hero" size="lg">
-                <UserPlus className="w-5 h-5 mr-2" />
-                Add Player
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle className="font-display text-xl">Add New Player</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <div>
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    value={newPlayer.name}
-                    onChange={(e) => setNewPlayer(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="John Smith"
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={newPlayer.email}
-                    onChange={(e) => setNewPlayer(prev => ({ ...prev, email: e.target.value }))}
-                    placeholder="john@example.com"
-                    className="mt-1"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="handicap">Handicap</Label>
-                  <Input
-                    id="handicap"
-                    type="number"
-                    min={0}
-                    max={54}
-                    step={0.1}
-                    value={newPlayer.handicap}
-                    onChange={(e) => setNewPlayer(prev => ({ ...prev, handicap: parseFloat(e.target.value) || 0 }))}
-                    className="mt-1"
-                  />
-                </div>
-                <Button onClick={handleAddPlayer} className="w-full" variant="hero">
+          <div className="flex gap-3">
+            <Button variant="outline" asChild>
+              <Link to="/fixtures">
+                Next: Create Session
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Link>
+            </Button>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="hero" size="lg">
+                  <UserPlus className="w-5 h-5 mr-2" />
                   Add Player
                 </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle className="font-display text-xl">Add New Player</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div>
+                    <Label htmlFor="name">Full Name</Label>
+                    <Input
+                      id="name"
+                      value={newPlayer.name}
+                      onChange={(e) => setNewPlayer(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="John Smith"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="email">Email (optional)</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={newPlayer.email}
+                      onChange={(e) => setNewPlayer(prev => ({ ...prev, email: e.target.value }))}
+                      placeholder="john@example.com"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="handicap">Handicap Index</Label>
+                    <Input
+                      id="handicap"
+                      type="number"
+                      min={0}
+                      max={54}
+                      step={0.1}
+                      value={newPlayer.handicap}
+                      onChange={(e) => setNewPlayer(prev => ({ ...prev, handicap: parseFloat(e.target.value) || 0 }))}
+                      className="mt-1"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Player's current handicap index (0-54)
+                    </p>
+                  </div>
+                  <Button onClick={handleAddPlayer} className="w-full" variant="hero">
+                    Add Player
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
+
+        {/* Setup Guide */}
+        {players.length < 4 && (
+          <Card className="mb-6 border-primary/50 bg-primary/5 animate-fade-up">
+            <CardContent className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Info className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-foreground mb-1">Getting Started</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    You need at least 4 players (2 per team) to create matches. 
+                    Add players above and assign them to teams.
+                  </p>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Badge variant="outline">Step 1: Add Players</Badge>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                    <Badge variant="outline">Step 2: Assign to Teams</Badge>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                    <Badge variant="outline">Step 3: Set Captains</Badge>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {players.length > 0 ? (
           <div className="space-y-4">
@@ -427,7 +423,8 @@ export default function Players() {
                           ) : (
                             <div className="text-center py-6 text-muted-foreground">
                               <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                              <p className="text-sm">No players assigned to this team yet</p>
+                              <p className="text-sm">No players assigned yet</p>
+                              <p className="text-xs mt-1">Assign players from the unassigned section below</p>
                             </div>
                           )}
                         </CardContent>
@@ -454,7 +451,7 @@ export default function Players() {
                           <Users className="w-4 h-4 text-muted-foreground" />
                           <CardTitle className="text-lg text-muted-foreground">Unassigned Players</CardTitle>
                           <Badge variant="outline" className="ml-2">
-                            {unassignedPlayers.length} players
+                            {unassignedPlayers.length}
                           </Badge>
                         </div>
                         <ChevronDown className={`w-5 h-5 text-muted-foreground transition-transform ${openTeams['unassigned'] ? 'rotate-180' : ''}`} />
